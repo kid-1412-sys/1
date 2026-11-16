@@ -1,3 +1,4 @@
+
 /**
  * AI 의약품 정보 쉬운 설명 서비스 - 메인 애플리케이션 컨트롤러
  * 
@@ -37,7 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 드래그 앤 드롭 이벤트 설정
   setupDragAndDrop();
 
-  // 기본적으로 첫 번째 의약품(타이레놀)으로 초기 분석 결과 로드해두기 (사용자가 즉시 볼 수 있도록)
+  // 기본적으로 첫 번째 의약품(타이레놀)으로 초기 분석 결과 로드
   if (typeof MEDICINE_DATABASE !== "undefined" && MEDICINE_DATABASE.length > 0) {
     selectMedicine(MEDICINE_DATABASE[0], false);
   }
@@ -53,18 +54,15 @@ function navigateTo(tabId) {
   const targetTab = validTabs.includes(tabId) ? tabId : "home";
   AppState.currentTab = targetTab;
 
-  // 모든 패널 숨김
   document.querySelectorAll(".view-panel").forEach(panel => {
     panel.classList.add("hidden");
   });
 
-  // 해당 패널 표시
   const activePanel = document.getElementById(`view-${targetTab}`);
   if (activePanel) {
     activePanel.classList.remove("hidden");
   }
 
-  // 내비게이션 탭 스타일 업데이트
   document.querySelectorAll(".nav-tab").forEach(tab => {
     if (tab.dataset.target === targetTab) {
       tab.classList.add("active");
@@ -73,11 +71,9 @@ function navigateTo(tabId) {
     }
   });
 
-  // URL 해시 갱신
   window.location.hash = targetTab;
   window.scrollTo({ top: 0, behavior: "smooth" });
 
-  // 뷰 전환 시 아이콘 재생성
   if (typeof lucide !== "undefined") {
     lucide.createIcons();
   }
@@ -142,7 +138,6 @@ function toggleTTS() {
     return;
   }
 
-  // 낭독할 텍스트 조합
   let textToSpeak = "";
   if (AppState.analysisResult) {
     const medTitle = AppState.selectedMedicine ? AppState.selectedMedicine.itemName : "의약품 쉬운 설명";
@@ -153,7 +148,7 @@ function toggleTTS() {
 
   const utterance = new SpeechSynthesisUtterance(textToSpeak);
   utterance.lang = "ko-KR";
-  utterance.rate = 0.9; // 어르신을 위해 약간 천천히 읽기
+  utterance.rate = 0.9;
   utterance.pitch = 1.0;
 
   utterance.onstart = () => {
@@ -304,7 +299,6 @@ function executeSearch() {
     document.getElementById("autocomplete-list").classList.add("hidden");
     selectMedicine(results[0], true);
   } else {
-    // DB에 없을 때 직접 문장 분석으로 제안
     if (confirm(`'${query}'에 대한 사전 정보가 식약처 기본 데이터셋에 없습니다.\n이 키워드로 AI 분석을 수행할까요?`)) {
       analyzeCustomQuery(query);
     }
@@ -331,7 +325,7 @@ async function analyzeCustomQuery(text) {
   showLoadingResult("입력하신 문맥과 전문 용어를 분석 중입니다...");
 
   try {
-    const result = await AIService.analyzeAndSimplify({
+    const result = await window.AIService.analyzeAndSimplify({
       medicineName: text.substring(0, 20),
       queryText: text,
       medicineObj: null
@@ -359,7 +353,7 @@ async function selectMedicine(med, shouldNavigate = true) {
   }
 
   try {
-    const result = await AIService.analyzeAndSimplify({
+    const result = await window.AIService.analyzeAndSimplify({
       medicineName: med.itemName,
       queryText: `${med.officialDoc.efficacy} ${med.officialDoc.dosage}`,
       medicineObj: med
@@ -387,7 +381,6 @@ function showLoadingResult(message) {
 }
 
 function renderResult(result, med) {
-  // 배지 업데이트
   const badge = document.getElementById("result-model-badge");
   badge.innerText = result.modelLabel || "AI 쉬운 설명";
   if (result.isLiveModel) {
@@ -396,14 +389,10 @@ function renderResult(result, med) {
     badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-sky-100 text-sky-800 border border-sky-200";
   }
 
-  // 타이틀
   document.getElementById("result-medicine-title").innerText = med ? med.itemName : (result.summary ? "의약품 쉬운 설명" : "분석 완료");
   document.getElementById("result-item-category").innerText = med ? `${med.entpName} | ${med.category} (${med.type})` : "사용자 입력 텍스트 분석";
-
-  // 한눈 요약
   document.getElementById("result-summary").innerText = result.summary;
 
-  // 주요 효과 리스트
   const effectsContainer = document.getElementById("result-key-effects");
   effectsContainer.innerHTML = (result.keyEffects || []).map(eff => `
     <li class="flex items-start gap-2.5">
@@ -412,10 +401,8 @@ function renderResult(result, med) {
     </li>
   `).join("");
 
-  // 복용 안내 (원문 보존)
   document.getElementById("result-dosage-text").innerText = result.safeDosage;
 
-  // 필수 주의사항 리스트
   const warningsContainer = document.getElementById("result-warnings");
   warningsContainer.innerHTML = (result.warnings || []).map(w => `
     <div class="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-amber-950 font-medium text-xs sm:text-sm flex items-start gap-2">
@@ -424,7 +411,6 @@ function renderResult(result, med) {
     </div>
   `).join("");
 
-  // 전문 용어 그리드
   const termsContainer = document.getElementById("result-terms-grid");
   if (result.termsExplained && result.termsExplained.length > 0) {
     termsContainer.innerHTML = result.termsExplained.map(t => `
@@ -541,7 +527,7 @@ function processImageFile(file) {
 }
 
 /**
- * 처방전 가상 샘플 로드 (실제 이미지 파일이 없는 사용자 테스트용)
+ * 처방전 가상 샘플 로드
  */
 function loadSampleImage(type) {
   const canvas = document.createElement("canvas");
@@ -549,16 +535,13 @@ function loadSampleImage(type) {
   canvas.height = 340;
   const ctx = canvas.getContext("2d");
 
-  // 흰색 배경
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // 처방전 테두리
   ctx.strokeStyle = "#94a3b8";
   ctx.lineWidth = 2;
   ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
 
-  // 헤더
   ctx.fillStyle = "#0284c7";
   ctx.fillRect(10, 10, canvas.width - 20, 45);
   ctx.fillStyle = "#ffffff";
@@ -654,7 +637,6 @@ async function runOCR(imageSource) {
     textOutput.value = ocrResult.rawText;
     AppState.ocrRawText = ocrResult.rawText;
 
-    // 매칭된 의약품 확인
     if (ocrResult.parsedMedicines.length > 0) {
       const matched = ocrResult.parsedMedicines[0];
       AppState.selectedMedicine = matched;
@@ -739,7 +721,7 @@ function closeTermModal(e) {
 function openApiModal() {
   const modal = document.getElementById("api-modal");
   const input = document.getElementById("input-api-key");
-  input.value = AIService.getApiKey();
+  input.value = window.AIService.getApiKey();
   modal.classList.remove("hidden");
 }
 
@@ -751,14 +733,14 @@ function closeApiModal(e) {
 function saveApiKey() {
   const input = document.getElementById("input-api-key");
   const key = input.value.trim();
-  AIService.setApiKey(key);
+  window.AIService.setApiKey(key);
   updateApiStatusBadge();
   closeApiModal();
   alert(key ? "Gemini API 키가 저장되었습니다. 앞으로 실시간 AI 생성이 우선 작동합니다." : "API 키가 삭제되었습니다. 무료 로컬 RAG 모드로 전환됩니다.");
 }
 
 function clearApiKey() {
-  AIService.setApiKey("");
+  window.AIService.setApiKey("");
   document.getElementById("input-api-key").value = "";
   updateApiStatusBadge();
   closeApiModal();
@@ -768,7 +750,7 @@ function clearApiKey() {
 function updateApiStatusBadge() {
   const badge = document.getElementById("api-status-badge");
   if (!badge) return;
-  if (AIService.hasApiKey()) {
+  if (window.AIService.hasApiKey()) {
     badge.innerText = "Gemini AI 연동됨";
     badge.parentElement.className = "px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-700 text-xs font-semibold flex items-center gap-1.5 transition";
   } else {
