@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 의약품 정보 쉬운 설명 서비스 | 모두의 약설명</title>
+  <meta name="description" content="의약품안전나라 e약은요 공식 자료와 딥러닝 AI 기술을 활용하여 전문 의약품 정보를 누구나 이해하기 쉬운 말로 설명해 주는 웹 서비스입니다." />
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: '#0284c7', // Sky-600
+              dark: '#0369a1',    // Sky-700
+              light: '#e0f2fe'   // Sky-100
+            },
+            teal: {
+              DEFAULT: '#0d9488', // Teal-600
+              dark: '#0f766e',    // Teal-700
+              light: '#ccfbf1'   // Teal-100
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Tesseract.js (클라이언트 OCR) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+  <!-- 커스텀 스타일 -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans transition-colors duration-200">
+
+  <!-- ================= 1. 상단 내비게이션 바 & 접근성 도구 ================= -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        
+        <!-- 서비스 로고 -->
+        <a href="#home" class="flex items-center gap-2.5 group cursor-pointer" onclick="navigateTo('home')">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-sky-500/20 group-hover:scale-105 transition">
+            <i data-lucide="pill" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <span class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-sky-700 to-teal-600 bg-clip-text text-transparent">모두의 약설명</span>
+            <span class="hidden sm:inline-block text-xs px-2 py-0.5 ml-1.5 font-semibold bg-sky-100 text-sky-800 rounded-full border border-sky-200">AI 쉬운 설명</span>
+          </div>
+        </a>
+
+        <!-- 접근성 도구 (글자 크기 조절, 고대비, AI 키 설정) -->
+        <div class="flex items-center gap-2 sm:gap-3">
+          <!-- 글자 크기 조절 -->
+          <div class="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200 text-xs font-semibold" title="화면 글자 크기 조절">
+            <button id="btn-font-sm" class="px-2 py-1 rounded hover:bg-white transition" onclick="changeFontSize('small')">A-</button>
+            <button id="btn-font-md" class="px-2 py-1 rounded bg-white shadow-sm font-bold text-sky-700" onclick="changeFontSize('normal')">보통</button>
+            <button id="btn-font-lg" class="px-2 py-1 rounded hover:bg-white transition" onclick="changeFontSize('large')">A+</button>
+          </div>
+
+          <!-- 고대비 모드 토글 -->
+          <button id="btn-high-contrast" onclick="toggleHighContrast()" class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 transition" title="시각 보조용 고대비 모드">
+            <i data-lucide="sun-moon" class="w-4 h-4"></i>
+            <span class="hidden md:inline">고대비</span>
+          </button>
+
+          <!-- AI API 설정 버튼 -->
+          <button onclick="openApiModal()" class="px-3 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 border border-sky-300 text-sky-700 text-xs font-semibold flex items-center gap-1.5 transition">
+            <i data-lucide="sparkles" class="w-4 h-4 text-sky-600"></i>
+            <span id="api-status-badge">AI 연동 설정</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- 내비게이션 탭 메뉴 -->
+      <nav class="flex border-t border-slate-100 overflow-x-auto no-scrollbar py-1 gap-1 sm:gap-4 text-sm font-medium text-slate-600">
+        <button onclick="navigateTo('home')" class="nav-tab active px-3 py-2 flex items-center gap-1.5 whitespace-nowrap" data-target="home">
+          <i data-lucide="home" class="w-4 h-4"></i> 홈
+        </button>
+        <button onclick="navigateTo('search')" class="nav-tab px-3 py-2 flex items-center gap-1.5 whitespace-nowrap" data-target="search">
+          <i data-lucide="search" class="w-4 h-4"></i> 의약품 검색·입력
+        </button>
+        <button onclick="navigateTo('ocr')" class="nav-tab px-3 py-2 flex items-center gap-1.5 whitespace-nowrap" data-target="ocr">
+          <i data-lucide="camera" class="w-4 h-4"></i> 처방전·약봉투 OCR
+        </button>
+        <button onclick="navigateTo('result')" class="nav-tab px-3 py-2 flex items-center gap-1.5 whitespace-nowrap" data-target="result">
+          <i data-lucide="bot" class="w-4 h-4"></i> AI 분석 결과
+        </button>
+        <button onclick="navigateTo('compare')" class="nav-tab px-3 py-2 flex items-center gap-1.5 whitespace-nowrap" data-target="compare">
+          <i data-lucide="columns-2" class="w-4 h-4"></i> 원문 vs 쉬운 설명
+        </button>
+        <button onclick="navigateTo('sources')" class="nav-tab px-3 py-2 flex items-center gap-1.5 whitespace-nowrap" data-target="sources">
+          <i data-lucide="shield-check" class="w-4 h-4"></i> 공식 출처·안전성
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ================= 안전성 및 법적 고지 배너 (Safety Disclaimer) ================= -->
+  <div class="bg-amber-50 border-b border-amber-200 px-4 py-2.5 text-xs sm:text-sm text-amber-900">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600 shrink-0"></i>
+        <span><strong>안내:</strong> 본 서비스는 식약처 공식 자료 기반의 <strong>이해 보조 교육용 도구</strong>이며 의사·약사의 전문 진단 및 복약지도를 대신할 수 없습니다. <strong>복용량과 복용법은 절대 임의로 변경하지 마세요.</strong></span>
+      </div>
+      <button onclick="this.parentElement.parentElement.style.display='none'" class="text-amber-700 hover:text-amber-900 text-xs underline shrink-0">닫기</button>
+    </div>
+  </div>
+
+  <!-- ================= 메인 콘텐츠 영역 (SPA 뷰) ================= -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- 1. 메인 홈 화면 (#view-home) -->
+    <section id="view-home" class="view-panel space-y-8">
+      <!-- 히어로 배너 -->
+      <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-sky-600 via-sky-700 to-teal-700 text-white p-8 sm:p-12 shadow-xl">
+        <div class="relative z-10 max-w-3xl space-y-4">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur text-xs font-semibold tracking-wide">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-sky-200"></i>
+            식약처 e약은요 공식 데이터 + 딥러닝 생성형 AI
+          </div>
+          <h1 class="text-2xl sm:text-4xl font-extrabold leading-tight">
+            어려운 의약품 설명서,<br />
+            누구나 알기 쉬운 말로 친절하게 설명합니다.
+          </h1>
+          <p class="text-sky-100 text-base sm:text-lg leading-relaxed">
+            한자어 투성이의 전문 의약 용어와 긴 문장 때문에 불편하셨나요?<br class="hidden sm:inline" />
+            공식 허가 자료를 바탕으로 안전하고 명확하게 일상어로 풀어드립니다.
+          </p>
+          <div class="pt-2 flex flex-wrap gap-3">
+            <button onclick="navigateTo('search')" class="px-6 py-3 rounded-xl bg-white text-sky-800 font-bold hover:bg-sky-50 shadow-md hover:shadow-lg transition flex items-center gap-2">
+              <i data-lucide="search" class="w-5 h-5 text-sky-600"></i> 의약품 검색하기
+            </button>
+            <button onclick="navigateTo('ocr')" class="px-6 py-3 rounded-xl bg-teal-500/80 hover:bg-teal-500 text-white font-bold border border-teal-300/40 shadow-md transition flex items-center gap-2">
+              <i data-lucide="camera" class="w-5 h-5"></i> 처방전 사진 올리기
+            </button>
+          </div>
+        </div>
+        <!-- 배경 장식 아이콘 -->
+        <i data-lucide="heart-pulse" class="absolute -right-8 -bottom-8 w-64 h-64 text-white/10 pointer-events-none"></i>
+      </div>
+
+      <!-- 다빈도 의약품 퀵 검색 섹션 -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg sm:text-xl font-bold flex items-center gap-2">
+            <i data-lucide="flame" class="w-5 h-5 text-amber-500"></i>
+            자주 찾는 대표 의약품 (원클릭 쉬운 설명 체험)
+          </h2>
+          <span class="text-xs text-slate-500">식약처 e약은요 공식 표준 데이터</span>
+        </div>
+        <div id="quick-medicines-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          <!-- JS로 동적 생성 -->
+        </div>
+      </div>
+
+      <!-- 서비스 3대 핵심 안전 원칙 카드 -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+        <div class="card-soft p-6 space-y-3">
+          <div class="w-12 h-12 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold">
+            <i data-lucide="book-check" class="w-6 h-6"></i>
+          </div>
+          <h3 class="font-bold text-lg">100% 공식 출처 근거</h3>
+          <p class="text-sm text-slate-600 leading-relaxed">
+            식품의약품안전처 e약은요, 의약품안전나라, 약학정보원의 검증된 자료만을 참조하여 임의의 허위 정보 생성을 방지합니다.
+          </p>
+        </div>
+        <div class="card-soft p-6 space-y-3">
+          <div class="w-12 h-12 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center font-bold">
+            <i data-lucide="shield-alert" class="w-6 h-6"></i>
+          </div>
+          <h3 class="font-bold text-lg">복용량 임의 변경 엄금</h3>
+          <p class="text-sm text-slate-600 leading-relaxed">
+            환자의 안전을 위해 복용량, 복용 시간 등의 행동 지침은 AI가 수정하지 않고 식약처 공식 원형을 그대로 보존합니다.
+          </p>
+        </div>
+        <div class="card-soft p-6 space-y-3">
+          <div class="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+            <i data-lucide="accessibility" class="w-6 h-6"></i>
+          </div>
+          <h3 class="font-bold text-lg">시니어 & 배리어프리</h3>
+          <p class="text-sm text-slate-600 leading-relaxed">
+            큰 글씨 모드, 고대비 모드, 음성 읽어주기(TTS) 기능을 제공하여 눈이 침침하신 어르신도 편안하게 이해할 수 있습니다.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 의약품 검색 및 텍스트 직접 입력 화면 (#view-search) -->
+    <section id="view-search" class="view-panel hidden space-y-8">
+      <div class="max-w-3xl mx-auto space-y-6">
+        <div class="text-center space-y-2">
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900">의약품 검색 및 쉬운 설명 요청</h2>
+          <p class="text-slate-600 text-sm sm:text-base">약 이름을 검색하거나, 이해하기 어려운 약 설명서 문장을 직접 붙여넣으세요.</p>
+        </div>
+
+        <!-- 탭 전환: 약 이름 검색 vs 문장 직접 입력 -->
+        <div class="flex border-b border-slate-200">
+          <button id="btn-tab-search-name" onclick="switchSearchTab('name')" class="flex-1 py-3 text-center font-bold border-b-2 border-sky-600 text-sky-700">
+            약 이름으로 검색
+          </button>
+          <button id="btn-tab-search-text" onclick="switchSearchTab('text')" class="flex-1 py-3 text-center font-medium text-slate-500 hover:text-slate-800">
+            설명서 문장 직접 입력
+          </button>
+        </div>
+
+        <!-- 옵션 A: 약 이름 검색 영역 -->
+        <div id="section-search-name" class="space-y-4">
+          <div class="relative">
+            <input type="text" id="input-medicine-name" placeholder="약 이름을 입력하세요 (예: 타이레놀, 이지엔6, 탁센, 베아제)" 
+              class="w-full pl-12 pr-24 py-4 rounded-2xl border-2 border-slate-200 focus:border-sky-500 focus:outline-none text-base sm:text-lg shadow-sm"
+              oninput="handleNameSearchInput(this.value)"
+              onkeydown="if(event.key==='Enter') executeSearch()" />
+            <i data-lucide="search" class="w-6 h-6 text-slate-400 absolute left-4 top-4"></i>
+            <button onclick="executeSearch()" class="absolute right-2.5 top-2.5 px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm shadow transition">
+              검색
+            </button>
+          </div>
+
+          <!-- 자동완성 추천 드롭다운 -->
+          <div id="autocomplete-list" class="hidden bg-white border border-slate-200 rounded-xl shadow-lg divide-y divide-slate-100 max-h-64 overflow-y-auto">
+            <!-- 검색 결과 추천 항목 -->
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 pt-2 text-xs text-slate-500">
+            <span class="font-semibold text-slate-600">추천 검색어:</span>
+            <button onclick="selectQuickSearch('타이레놀')" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-sky-100 hover:text-sky-800 transition">타이레놀</button>
+            <button onclick="selectQuickSearch('이지엔6')" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-sky-100 hover:text-sky-800 transition">이지엔6</button>
+            <button onclick="selectQuickSearch('탁센')" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-sky-100 hover:text-sky-800 transition">탁센</button>
+            <button onclick="selectQuickSearch('게보린')" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-sky-100 hover:text-sky-800 transition">게보린</button>
+            <button onclick="selectQuickSearch('겔포스')" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-sky-100 hover:text-sky-800 transition">겔포스</button>
+            <button onclick="selectQuickSearch('지르텍')" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-sky-100 hover:text-sky-800 transition">지르텍</button>
+          </div>
+        </div>
+
+        <!-- 옵션 B: 복잡한 문장 직접 입력 영역 -->
+        <div id="section-search-text" class="hidden space-y-4">
+          <div class="space-y-2">
+            <label class="block text-sm font-bold text-slate-700">약 설명서의 전문 문장 또는 궁금한 내용 붙여넣기:</label>
+            <textarea id="input-custom-text" rows="5" placeholder="예: '류마티양 관절염, 골관절염, 강직성 척추염 등의 소염 및 진통에 경구 투여한다. 소화성궤양 환자는 금기이다.'"
+              class="w-full p-4 rounded-2xl border-2 border-slate-200 focus:border-sky-500 focus:outline-none text-base shadow-sm"></textarea>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <button onclick="fillSampleSentence()" class="text-xs font-semibold text-sky-700 hover:underline flex items-center gap-1">
+              <i data-lucide="file-text" class="w-3.5 h-3.5"></i> 어려운 예시 문장 자동으로 채우기
+            </button>
+            <button onclick="executeCustomTextAnalysis()" class="px-6 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow transition flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-4 h-4"></i> AI 쉬운 설명 분석 시작
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 처방전 / 약봉투 OCR 이미지 업로드 화면 (#view-ocr) -->
+    <section id="view-ocr" class="view-panel hidden space-y-8">
+      <div class="max-w-3xl mx-auto space-y-6">
+        <div class="text-center space-y-2">
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900">처방전 · 약봉투 사진 텍스트 인식 (OCR)</h2>
+          <p class="text-slate-600 text-sm sm:text-base">
+            스마트폰으로 찍은 처방전이나 약봉투 사진을 올리시면, 브라우저 딥러닝 OCR이 글자를 읽어 의약품명을 자동으로 찾아냅니다.
+          </p>
+        </div>
+
+        <!-- 드래그 앤 드롭 업로드 카드 -->
+        <div id="ocr-dropzone" class="dropzone p-8 text-center cursor-pointer bg-white" onclick="document.getElementById('file-input').click()">
+          <input type="file" id="file-input" accept="image/*" class="hidden" onchange="handleFileSelect(event)" />
+          
+          <div class="space-y-4">
+            <div class="w-16 h-16 rounded-2xl bg-sky-100 text-sky-600 mx-auto flex items-center justify-center">
+              <i data-lucide="upload-cloud" class="w-8 h-8"></i>
+            </div>
+            <div>
+              <p class="font-bold text-base sm:text-lg text-slate-800">사진 파일을 이곳에 끌어다 놓거나 클릭하여 선택하세요</p>
+              <p class="text-xs sm:text-sm text-slate-500 mt-1">지원 형식: JPG, PNG, WEBP (처방전, 약봉투, 약품 겉면 사진)</p>
+            </div>
+            <button type="button" class="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm shadow transition">
+              사진 파일 선택
+            </button>
+          </div>
+        </div>
+
+        <!-- 준비된 샘플 이미지로 바로 테스트해보기 버튼 그룹 -->
+        <div class="bg-slate-100 rounded-2xl p-4 border border-slate-200 space-y-2">
+          <p class="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+            <i data-lucide="test-tube" class="w-4 h-4 text-sky-600"></i>
+            사진 파일이 없으신가요? 준비된 가상 샘플로 즉시 테스트해보세요:
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="loadSampleImage('tylenol')" class="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-sky-50 text-xs font-semibold text-slate-700 transition">
+              샘플 1: 타이레놀 처방전
+            </button>
+            <button onclick="loadSampleImage('ezn6')" class="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-sky-50 text-xs font-semibold text-slate-700 transition">
+              샘플 2: 이지엔6 약봉투
+            </button>
+            <button onclick="loadSampleImage('tak-sen')" class="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-sky-50 text-xs font-semibold text-slate-700 transition">
+              샘플 3: 탁센 안내문
+            </button>
+          </div>
+        </div>
+
+        <!-- 이미지 미리보기 및 OCR 프로그레스 바 -->
+        <div id="ocr-preview-container" class="hidden card-soft p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-bold text-base flex items-center gap-2">
+              <i data-lucide="image" class="w-4 h-4 text-sky-600"></i> 선택된 이미지
+            </h3>
+            <button onclick="resetOcr()" class="text-xs text-red-600 hover:underline">다시 선택</button>
+          </div>
+          
+          <div class="max-h-60 overflow-hidden rounded-xl border border-slate-200 flex items-center justify-center bg-slate-50">
+            <img id="ocr-preview-img" src="" alt="OCR 미리보기" class="max-h-60 object-contain" />
+          </div>
+
+          <!-- 진행 상태 표시 -->
+          <div id="ocr-progress-box" class="space-y-2">
+            <div class="flex justify-between text-xs font-semibold">
+              <span id="ocr-status-text" class="text-sky-700">인식 준비 중...</span>
+              <span id="ocr-percent" class="text-slate-600">0%</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+              <div id="ocr-progress-bar" class="bg-sky-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- OCR 추출 결과 텍스트 -->
+          <div id="ocr-result-box" class="hidden space-y-3 pt-2">
+            <label class="block text-xs font-bold text-slate-700">인식된 텍스트 원문:</label>
+            <textarea id="ocr-extracted-text" rows="4" class="w-full p-3 rounded-xl border border-slate-300 text-sm bg-slate-50 font-mono"></textarea>
+            
+            <!-- 자동 매칭된 의약품 발견 알림 -->
+            <div id="ocr-matched-medicines" class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs space-y-1">
+              <!-- JS 매칭 결과 표시 -->
+            </div>
+
+            <button onclick="analyzeFromOcr()" class="w-full py-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm shadow transition flex items-center justify-center gap-2">
+              <i data-lucide="sparkles" class="w-4 h-4"></i> 추출된 정보로 AI 쉬운 설명 생성하기
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. AI 분석 결과 화면 (#view-result) -->
+    <section id="view-result" class="view-panel hidden space-y-6">
+      <!-- 상단 컨트롤 및 상태 배지 -->
+      <div class="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+        <div class="space-y-1">
+          <div class="flex items-center gap-2">
+            <span id="result-model-badge" class="px-2.5 py-1 rounded-full text-xs font-bold bg-sky-100 text-sky-800 border border-sky-200">
+              AI 모델 분석 완료
+            </span>
+            <span id="result-item-category" class="text-xs text-slate-500 font-medium">일반의약품</span>
+          </div>
+          <h2 id="result-medicine-title" class="text-xl sm:text-2xl font-black text-slate-900">
+            의약품 쉬운 설명서
+          </h2>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <!-- 음성 읽어주기 (TTS) -->
+          <button id="btn-tts" onclick="toggleTTS()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow transition flex items-center gap-2">
+            <i data-lucide="volume-2" class="w-4 h-4"></i>
+            <span id="tts-label">소리내어 읽기</span>
+          </button>
+          <!-- 원문 비교 탭으로 가기 -->
+          <button onclick="navigateTo('compare')" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm border border-slate-300 transition flex items-center gap-1.5">
+            <i data-lucide="columns-2" class="w-4 h-4"></i> 원문과 비교
+          </button>
+        </div>
+      </div>
+
+      <!-- 핵심 요약 카드 (가장 크게 잘 보이도록 디자인) -->
+      <div class="card-soft p-6 sm:p-8 bg-gradient-to-br from-sky-50 via-white to-teal-50/50 border-2 border-sky-100 space-y-4">
+        <div class="flex items-center gap-2 text-sky-800 font-bold text-sm">
+          <i data-lucide="lightbulb" class="w-5 h-5 text-amber-500"></i>
+          한눈에 이해하는 핵심 요약
+        </div>
+        <p id="result-summary" class="text-lg sm:text-2xl font-extrabold text-slate-900 leading-snug">
+          약을 선택하거나 분석을 요청하시면 쉬운 요약이 표시됩니다.
+        </p>
+      </div>
+
+      <!-- 쉬운 주요 효능 / 효과 그리드 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- 이 약의 쉬운 효과 -->
+        <div class="card-soft p-6 space-y-4">
+          <h3 class="font-bold text-base sm:text-lg flex items-center gap-2 text-slate-900">
+            <i data-lucide="check-circle-2" class="w-5 h-5 text-teal-600"></i>
+            이럴 때 드시는 약입니다 (쉬운 효능)
+          </h3>
+          <ul id="result-key-effects" class="space-y-2.5 text-sm sm:text-base text-slate-700">
+            <!-- JS 동적 주입 -->
+          </ul>
+        </div>
+
+        <!-- 올바른 복용법 (원문 보존) -->
+        <div class="card-soft p-6 space-y-4">
+          <h3 class="font-bold text-base sm:text-lg flex items-center gap-2 text-slate-900">
+            <i data-lucide="clock" class="w-5 h-5 text-sky-600"></i>
+            복용 안내 (공식 원문 기준)
+          </h3>
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-sm sm:text-base text-slate-800 leading-relaxed">
+            <p id="result-dosage-text">복용법 정보가 표시됩니다.</p>
+          </div>
+          <p class="text-xs text-slate-500 flex items-center gap-1">
+            <i data-lucide="lock" class="w-3.5 h-3.5 text-slate-400"></i>
+            안전을 위해 복용량과 시간은 AI가 변경하지 않고 공식 원문을 그대로 안내합니다.
+          </p>
+        </div>
+      </div>
+
+      <!-- 꼭 지켜야 할 주의사항 -->
+      <div class="card-soft p-6 border-l-4 border-l-amber-500 space-y-3">
+        <h3 class="font-bold text-base sm:text-lg flex items-center gap-2 text-amber-900">
+          <i data-lucide="alert-octagon" class="w-5 h-5 text-amber-600"></i>
+          꼭 지켜야 할 주의사항 (부작용 예방)
+        </h3>
+        <div id="result-warnings" class="space-y-2 text-sm sm:text-base text-slate-700">
+          <!-- JS 동적 주입 -->
+        </div>
+      </div>
+
+      <!-- 발견된 전문 용어 사전 팝업 카드 -->
+      <div class="card-soft p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-base flex items-center gap-2 text-slate-900">
+            <i data-lucide="book-open" class="w-5 h-5 text-indigo-600"></i>
+            이 설명서에 나온 전문 용어 쉬운 풀이
+          </h3>
+          <span class="text-xs text-slate-500">클릭하시면 자세한 해설을 볼 수 있습니다</span>
+        </div>
+        <div id="result-terms-grid" class="flex flex-wrap gap-2">
+          <!-- JS 동적 주입 -->
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. 원문과 쉬운 설명 비교 화면 (#view-compare) -->
+    <section id="view-compare" class="view-panel hidden space-y-6">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900">원문과 쉬운 설명 나란히 비교하기</h2>
+          <p class="text-slate-600 text-xs sm:text-sm">어려운 공식 원문과 AI가 일상어로 변환한 설명을 1:1로 비교해 보세요.</p>
+        </div>
+        <div class="text-xs bg-sky-50 text-sky-800 px-3 py-1.5 rounded-lg border border-sky-200 font-semibold flex items-center gap-1.5">
+          <i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5"></i>
+          밑줄 친 전문 용어를 누르면 상세 뜻이 나옵니다
+        </div>
+      </div>
+
+      <!-- 좌우 2열 비교 레이아웃 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- 좌측: 식약처 공식 원문 -->
+        <div class="card-soft p-6 space-y-4 border-t-4 border-t-slate-400">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+            <span class="font-bold text-base text-slate-800 flex items-center gap-2">
+              <i data-lucide="file-text" class="w-5 h-5 text-slate-600"></i>
+              식품의약품안전처 공식 허가 원문
+            </span>
+            <span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">공식 규격</span>
+          </div>
+
+          <div class="space-y-4 text-sm leading-relaxed text-slate-700">
+            <div>
+              <h4 class="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-500 mb-1">[효능 · 효과 원문]</h4>
+              <div id="compare-official-efficacy" class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                표시할 원문 정보가 없습니다. 의약품을 먼저 선택해 주세요.
+              </div>
+            </div>
+            <div>
+              <h4 class="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-500 mb-1">[용법 · 용량 원문]</h4>
+              <div id="compare-official-dosage" class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                정보 없음
+              </div>
+            </div>
+            <div>
+              <h4 class="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-500 mb-1">[사용상 주의사항 원문]</h4>
+              <div id="compare-official-precautions" class="p-3 bg-slate-50 rounded-xl border border-slate-200 max-h-48 overflow-y-auto">
+                정보 없음
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 우측: AI 쉬운 설명 -->
+        <div class="card-soft p-6 space-y-4 border-t-4 border-t-sky-500 bg-sky-50/20">
+          <div class="flex items-center justify-between pb-3 border-b border-sky-100">
+            <span class="font-bold text-base text-sky-900 flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-5 h-5 text-sky-600"></i>
+              AI 알기 쉬운 일상어 설명
+            </span>
+            <span class="text-xs px-2 py-0.5 rounded bg-sky-100 text-sky-800 font-semibold">쉬운 한국어</span>
+          </div>
+
+          <div class="space-y-4 text-sm sm:text-base leading-relaxed text-slate-800">
+            <div>
+              <h4 class="font-bold text-xs uppercase tracking-wider text-sky-800 mb-1">[어떤 효과가 있나요?]</h4>
+              <div id="compare-easy-efficacy" class="p-3 bg-white rounded-xl border border-sky-200 shadow-sm">
+                의약품을 선택하시면 이해하기 쉬운 설명이 나타납니다.
+              </div>
+            </div>
+            <div>
+              <h4 class="font-bold text-xs uppercase tracking-wider text-sky-800 mb-1">[어떻게 복용하나요?]</h4>
+              <div id="compare-easy-dosage" class="p-3 bg-white rounded-xl border border-sky-200 shadow-sm">
+                정보 없음
+              </div>
+            </div>
+            <div>
+              <h4 class="font-bold text-xs uppercase tracking-wider text-sky-800 mb-1">[이것만은 꼭 조심하세요]</h4>
+              <div id="compare-easy-precautions" class="p-3 bg-white rounded-xl border border-sky-200 shadow-sm">
+                정보 없음
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 6. 공식 출처 및 데이터 신뢰도 화면 (#view-sources) -->
+    <section id="view-sources" class="view-panel hidden space-y-8">
+      <div class="max-w-4xl mx-auto space-y-6">
+        <div class="text-center space-y-2">
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900">데이터 출처 및 안전성 검증 헌장</h2>
+          <p class="text-slate-600 text-sm sm:text-base">
+            본 서비스는 국가 공인 기관의 정식 데이터를 기반으로 하며, 무단 수집이나 허위 정보 생성을 철저히 배제합니다.
+          </p>
+        </div>
+
+        <!-- 3대 데이터 출처 카드 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="card-soft p-6 space-y-3">
+            <span class="text-xs font-bold text-sky-700 bg-sky-100 px-2.5 py-1 rounded-full">출처 1</span>
+            <h3 class="font-bold text-lg text-slate-900">식약처 e약은요</h3>
+            <p class="text-xs text-slate-500">nedrug.mfds.go.kr/searchEasyDrug</p>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              식품의약품안전처에서 일반 국민을 위해 전문 의약품 정보를 알기 쉽게 감수한 공식 대민 서비스 자료입니다.
+            </p>
+            <a href="https://nedrug.mfds.go.kr/searchEasyDrug" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs font-bold text-sky-600 hover:underline pt-2">
+              공식 웹사이트 바로가기 <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            </a>
+          </div>
+
+          <div class="card-soft p-6 space-y-3">
+            <span class="text-xs font-bold text-teal-700 bg-teal-100 px-2.5 py-1 rounded-full">출처 2</span>
+            <h3 class="font-bold text-lg text-slate-900">의약품안전나라</h3>
+            <p class="text-xs text-slate-500">nedrug.mfds.go.kr/searchDrug</p>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              대한민국에서 허가된 모든 의약품의 법적 효능효과, 용법용량, 사용상 주의사항 원문 데이터베이스입니다.
+            </p>
+            <a href="https://nedrug.mfds.go.kr/searchDrug" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs font-bold text-teal-600 hover:underline pt-2">
+              공식 웹사이트 바로가기 <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            </a>
+          </div>
+
+          <div class="card-soft p-6 space-y-3">
+            <span class="text-xs font-bold text-indigo-700 bg-indigo-100 px-2.5 py-1 rounded-full">출처 3</span>
+            <h3 class="font-bold text-lg text-slate-900">약학정보원 복약정보</h3>
+            <p class="text-xs text-slate-500">health.kr/drug-info/medication</p>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              대한약사회 산하 약학정보원의 전문 복약지도 가이드와 음식 상호작용 지침을 참고합니다.
+            </p>
+            <a href="https://www.health.kr/drug-info/medication" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:underline pt-2">
+              공식 웹사이트 바로가기 <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- 데이터 수집 기준 및 처리 투명성 명세표 -->
+        <div class="card-soft p-6 space-y-4">
+          <h3 class="font-bold text-base text-slate-900 flex items-center gap-2">
+            <i data-lucide="clipboard-check" class="w-5 h-5 text-teal-600"></i>
+            데이터 수집 및 안전 처리 투명성 명세
+          </h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs sm:text-sm border-collapse">
+              <thead>
+                <tr class="bg-slate-100 text-slate-700 border-b border-slate-200">
+                  <th class="p-3">항목</th>
+                  <th class="p-3">구현 내용</th>
+                  <th class="p-3">검증 및 안전 장치</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-slate-600">
+                <tr>
+                  <td class="p-3 font-semibold text-slate-800">공식 API 및 데이터셋</td>
+                  <td class="p-3">식품의약품안전처 e약은요 표준 포맷 DB 탑재</td>
+                  <td class="p-3 text-emerald-600 font-semibold">허가번호(품목기준코드) 매칭</td>
+                </tr>
+                <tr>
+                  <td class="p-3 font-semibold text-slate-800">데이터 수집 기준일</td>
+                  <td class="p-3">2026년 11월 16일 기준</td>
+                  <td class="p-3">정기 갱신 및 출처 URL 링크 제공</td>
+                </tr>
+                <tr>
+                  <td class="p-3 font-semibold text-slate-800">복용량·시간 왜곡 방지</td>
+                  <td class="p-3">AI 임의 생성 차단, 원문 그대로 인용(Lock)</td>
+                  <td class="p-3 text-emerald-600 font-semibold">가드레일 시스템 프롬프트 엄수</td>
+                </tr>
+                <tr>
+                  <td class="p-3 font-semibold text-slate-800">오프라인 Fallback</td>
+                  <td class="p-3">API 키 없이도 400여 전문용어 사전 규칙 작동</td>
+                  <td class="p-3">AI 동작 여부 투명 배지 공개</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= 전문 용어 해설 모달 ================= -->
+  <div id="term-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 modal-backdrop" onclick="closeTermModal(event)">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <span id="modal-term-category" class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-sky-100 text-sky-800">용어 해설</span>
+        <button onclick="closeTermModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div>
+        <h4 id="modal-term-name" class="text-xl font-bold text-slate-900">전문 용어</h4>
+        <p id="modal-term-simple" class="text-base font-semibold text-sky-700 mt-1">쉬운 우리말 표현</p>
+      </div>
+      <p id="modal-term-desc" class="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+        상세 설명이 들어갑니다.
+      </p>
+      <button onclick="closeTermModal()" class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm transition">
+        확인
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= Google Gemini API 설정 모달 ================= -->
+  <div id="api-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 modal-backdrop" onclick="closeApiModal(event)">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-5" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 class="font-bold text-lg text-slate-900 flex items-center gap-2">
+          <i data-lucide="key" class="w-5 h-5 text-sky-600"></i> Google Gemini API 설정
+        </h3>
+        <button onclick="closeApiModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      
+      <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+        본 서비스는 <strong>API 키 없이도 식약처 공식 RAG 지식베이스와 전문용어 사전</strong>으로 즉시 완전하게 작동합니다.<br />
+        최신 Google Gemini 딥러닝 모델의 실시간 생성 기능을 원하시면 개인 API 키를 입력해 주세요. (브라우저 로컬 저장소에만 안전하게 보관됩니다)
+      </p>
+
+      <div class="space-y-2">
+        <label class="block text-xs font-bold text-slate-700">Gemini API Key:</label>
+        <input type="password" id="input-api-key" placeholder="AIzaSy..." 
+          class="w-full p-3 rounded-xl border border-slate-300 text-sm focus:border-sky-500 focus:outline-none font-mono" />
+      </div>
+
+      <div class="flex items-center justify-between pt-2">
+        <button onclick="clearApiKey()" class="text-xs text-red-600 hover:underline">키 삭제 (무료 로컬 모드로 전환)</button>
+        <div class="flex gap-2">
+          <button onclick="closeApiModal()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs">취소</button>
+          <button onclick="saveApiKey()" class="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow transition">저장하기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 푸터 ================= -->
+  <footer class="bg-white border-t border-slate-200 mt-12 py-8 text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 text-center sm:text-left sm:flex sm:justify-between sm:items-center">
+      <div class="space-y-1">
+        <p class="font-bold text-slate-700">AI 의약품 정보 쉬운 설명 서비스 (모두의 약설명)</p>
+        <p>참고: 식품의약품안전처 e약은요, 의약품안전나라, 약학정보원 복약정보 (최종 수집일: 2026. 11. 16)</p>
+        <p class="text-[11px] text-slate-400">본 서비스는 의학적 판단 및 복약지도를 대신하지 않으며, 이용에 따른 책임은 사용자 본인에게 있습니다.</p>
+      </div>
+      <div class="flex justify-center sm:justify-end gap-4 font-semibold text-slate-600 pt-2 sm:pt-0">
+        <a href="#sources" onclick="navigateTo('sources')" class="hover:text-sky-600">데이터 출처</a>
+        <a href="https://github.com" target="_blank" class="hover:text-sky-600">GitHub Pages</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ================= JavaScript 로드 ================= -->
+  <script src="js/terms-dict.js"></script>
+  <script src="js/medicine-db.js"></script>
+  <script src="js/ocr.js"></script>
+  <script src="js/ai-service.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

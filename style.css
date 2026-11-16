@@ -1,0 +1,161 @@
+/* 
+  AI 의약품 정보 쉬운 설명 서비스 (EasyPharm AI) 스타일시트
+  메디컬 블루 (#0284c7), 민트/청록 (#0d9488), 클린 화이트 (#f8fafc)
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --font-base-size: 16px;
+  --color-primary: #0284c7;
+  --color-primary-dark: #0369a1;
+  --color-teal: #0d9488;
+  --color-accent: #2563eb;
+  --bg-page: #f8fafc;
+  --text-main: #1e293b;
+  --text-sub: #64748b;
+  --border-color: #e2e8f0;
+}
+
+/* 글자 크기 모드 */
+html {
+  font-size: var(--font-base-size);
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+  scroll-behavior: smooth;
+}
+
+html.font-large {
+  --font-base-size: 18px;
+}
+
+html.font-xlarge {
+  --font-base-size: 21px;
+}
+
+/* 고대비 모드 (High Contrast Mode) */
+html.high-contrast {
+  --bg-page: #000000;
+  --text-main: #ffffff;
+  --text-sub: #cbd5e1;
+  --border-color: #475569;
+}
+
+html.high-contrast body {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+html.high-contrast .bg-white {
+  background-color: #121212 !important;
+  color: #ffffff !important;
+  border-color: #ffff00 !important;
+}
+
+html.high-contrast .bg-slate-50,
+html.high-contrast .bg-sky-50,
+html.high-contrast .bg-emerald-50 {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+}
+
+html.high-contrast .text-slate-800,
+html.high-contrast .text-slate-700,
+html.high-contrast .text-slate-900 {
+  color: #ffffff !important;
+}
+
+html.high-contrast .text-slate-500,
+html.high-contrast .text-slate-600 {
+  color: #e2e8f0 !important;
+}
+
+html.high-contrast .medical-term {
+  color: #38bdf8 !important;
+  background-color: #1e293b !important;
+  text-decoration-color: #ffff00 !important;
+}
+
+/* 전문 용어 하이라이트 인터랙션 */
+.medical-term {
+  position: relative;
+  border-bottom: 2px dashed #0284c7;
+  padding: 0 3px;
+  border-radius: 4px;
+  background-color: rgba(2, 132, 199, 0.08);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.medical-term:hover {
+  background-color: #bae6fd;
+  color: #0369a1;
+}
+
+/* 카드 및 섀도우 효과 */
+.card-soft {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-soft:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+}
+
+/* 드래그 앤 드롭 영역 */
+.dropzone {
+  border: 2px dashed #93c5fd;
+  border-radius: 1rem;
+  transition: all 0.2s ease;
+}
+
+.dropzone.dragover {
+  border-color: #0284c7;
+  background-color: #f0f9ff;
+  transform: scale(1.01);
+}
+
+/* 탭 전환 버튼 */
+.nav-tab.active {
+  color: #0284c7;
+  border-bottom: 3px solid #0284c7;
+  font-weight: 700;
+}
+
+/* 모달 애니메이션 */
+.modal-backdrop {
+  backdrop-filter: blur(4px);
+  background-color: rgba(15, 23, 42, 0.5);
+}
+
+/* 음성 재생 중 물결 애니메이션 */
+@keyframes pulse-wave {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
+.speaking-active {
+  animation: pulse-wave 1.5s infinite ease-in-out;
+  border-color: #0d9488 !important;
+  background-color: #ccfbf1 !important;
+}
+
+/* 커스텀 스크롤바 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
