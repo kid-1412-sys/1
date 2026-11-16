@@ -12,7 +12,7 @@ class AIService {
   constructor() {
     this.storageKey = "easypharm_gemini_api_key";
     this.apiKey = localStorage.getItem(this.storageKey) || "";
-    this.modelName = "gemini-1.5-flash"; // 속도와 정확성이 검증된 사전학습 모델
+    this.modelName = "gemini-3.8-flash"; // 속도와 정확성이 검증된 사전학습 모델
   }
 
   /**
@@ -156,12 +156,29 @@ ${ragContext}
       }
     };
 
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody)
-    });
+  const controller = new AbortController();
 
+const timeoutId = setTimeout(() => {
+  controller.abort();
+}, 30000);
+
+let response;
+
+try {
+  response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(requestBody),
+    signal: controller.signal
+  });
+} catch (error) {
+  if (error.name === "AbortError") {
+    throw new Error("AI 응답 시간 초과: 30초 후 요청을 종료했습니다.");
+  }
+  throw error;
+} finally {
+  clearTimeout(timeoutId);
+}
     if (!response.ok) {
       const errJson = await response.json().catch(() => ({}));
       throw new Error(`Gemini API 통신 오류 (${response.status}): ${errJson.error?.message || response.statusText}`);
